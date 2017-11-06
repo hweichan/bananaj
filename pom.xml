@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.github.alexanderwe</groupId>
+    <groupId>com.github.hweichan</groupId>
     <artifactId>bananaj</artifactId>
     <version>1.2.3-alpha</version>
     <packaging>jar</packaging>
@@ -16,7 +16,7 @@
     <licenses>
         <license>
             <name>MIT</name>
-            <url>https://raw.githubusercontent.com/alexanderwe/bananaj/master/LICENSE.md</url>
+            <url>https://raw.githubusercontent.com/hweichan/bananaj/master/LICENSE.md</url>
             <distribution>repo</distribution>
         </license>
     </licenses>
@@ -31,9 +31,9 @@
 
 
     <scm>
-        <connection>scm:git:git://github.com/alexanderwe/bananaj.git</connection>
-        <developerConnection>scm:git:git://github.com/alexanderwe/bananaj.git</developerConnection>
-        <url>https://github.com/alexanderwe/bananaj</url>
+        <connection>scm:git:git://github.com/hweichan/bananaj.git</connection>
+        <developerConnection>scm:git:git://github.com/hweichan/bananaj.git</developerConnection>
+        <url>https://github.com/hweichan/bananaj</url>
     </scm>
 
     <distributionManagement>
