@@ -4,12 +4,14 @@
  */
 package model.template;
 
-import connection.MailChimpConnection;
-import model.MailchimpObject;
-import org.json.JSONObject;
-
 import java.net.URL;
 import java.time.LocalDateTime;
+import java.util.Optional;
+
+import org.json.JSONObject;
+
+import connection.MailChimpConnection;
+import model.MailchimpObject;
 
 public class Template extends MailchimpObject  {
 
@@ -37,6 +39,9 @@ public class Template extends MailchimpObject  {
 		this.html = b.html;
 	}
 
+    public Integer getIntId() {
+        return Optional.ofNullable(getId()).map(Integer::parseInt).orElse(null);
+    }
 
 	/**
 	 * Change the name of this template

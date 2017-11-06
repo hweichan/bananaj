@@ -4,29 +4,39 @@
  */
 package connection;
 
-import jxl.CellView;
-import jxl.Workbook;
-import jxl.write.*;
-import jxl.write.Number;
-import model.automation.Automation;
-import model.automation.AutomationStatus;
-import model.campaign.*;
-import model.list.MailChimpList;
-import model.list.member.Member;
-import model.template.Template;
-import model.template.TemplateFolder;
-import model.template.TemplateType;
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-import utils.DateConverter;
-
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Map;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import jxl.CellView;
+import jxl.Workbook;
+import jxl.write.Label;
+import jxl.write.Number;
+import jxl.write.WritableCellFormat;
+import jxl.write.WritableFont;
+import jxl.write.WritableSheet;
+import jxl.write.WritableWorkbook;
+import model.automation.Automation;
+import model.automation.AutomationStatus;
+import model.campaign.Campaign;
+import model.campaign.CampaignDefaults;
+import model.campaign.CampaignFolder;
+import model.campaign.CampaignSettings;
+import model.campaign.CampaignStatus;
+import model.campaign.CampaignType;
+import model.list.MailChimpList;
+import model.list.member.Member;
+import model.template.Template;
+import model.template.TemplateFolder;
+import model.template.TemplateType;
+import utils.DateConverter;
 
 
 /**
@@ -319,6 +329,7 @@ public class MailChimpConnection extends Connection{
 								campaignSettings.getString("title"),
 								campaignSettings.getString("from_name"),
 								campaignSettings.getString("reply_to"),
+                                campaignSettings.getInt("template_id"),
 								campaignDetail.getString("id"),
 								this),
 						this,
@@ -332,6 +343,7 @@ public class MailChimpConnection extends Connection{
 								campaignSettings.getString("title"),
 								campaignSettings.getString("from_name"),
 								campaignSettings.getString("reply_to"),
+                                campaignSettings.getInt("template_id"),
 								campaignDetail.getString("id"),
 								this),
 						this,
@@ -365,6 +377,7 @@ public class MailChimpConnection extends Connection{
 							campaignSettings.getString("title"),
 							campaignSettings.getString("from_name"),
 							campaignSettings.getString("reply_to"),
+                            campaignSettings.getInt("template_id"),
 							campaign.getString("id"),
 							this),
 					this,
@@ -378,6 +391,7 @@ public class MailChimpConnection extends Connection{
 							campaignSettings.getString("title"),
 							campaignSettings.getString("from_name"),
 							campaignSettings.getString("reply_to"),
+                            campaignSettings.getInt("template_id"),
 							campaign.getString("id"),
 							this),
 					this,
@@ -386,12 +400,15 @@ public class MailChimpConnection extends Connection{
 	}
 
 	/**
-	 * Create a new campaign in your mailchimp account
-	 * @param type
-	 * @param mailChimpList
-	 * @param settings
-	 */
-	public void createCampaign(CampaignType type, MailChimpList mailChimpList, CampaignSettings settings) throws Exception{
+     * Create a new campaign in your mailchimp account
+     * 
+     * @param type
+     * @param mailChimpList
+     * @param settings
+     * @return the created Campaign ID
+     */
+    public String createCampaign(CampaignType type, MailChimpList mailChimpList, CampaignSettings settings)
+            throws Exception {
 		
 		JSONObject campaign = new JSONObject();
 		
@@ -402,13 +419,17 @@ public class MailChimpConnection extends Connection{
 		jsonSettings.put("subject_line", settings.getSubject_line());
 		jsonSettings.put("from_name", settings.getFrom_name());
 		jsonSettings.put("reply_to", settings.getReply_to());
+        jsonSettings.put("title", settings.getTitle());
+        jsonSettings.put("template_id", settings.getTemplateId());
 	
 		
 		campaign.put("type", type.getStringRepresentation());
 		campaign.put("recipients", recipients);
 		campaign.put("settings", jsonSettings);
 		
-        do_Post(new URL(campaignendpoint), campaign.toString(),getApikey());
+        JSONObject createCampaignResponse = new JSONObject(
+                do_Post(new URL(campaignendpoint), campaign.toString(), getApikey()));
+        return createCampaignResponse.getString("id");
 	}
 
 	/**

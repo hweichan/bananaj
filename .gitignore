@@ -3,3 +3,6 @@
 target/*
 src/test/*
 bananaj.iml
+.classpath
+.project
+.settings

@@ -4,13 +4,14 @@
  */
 package model.campaign;
 
+import java.net.URL;
+
+import org.json.JSONObject;
+
 import connection.MailChimpConnection;
 import exceptions.CampaignSettingsException;
 import exceptions.EmailException;
-import org.json.JSONObject;
 import utils.EmailValidator;
-
-import java.net.URL;
 
 /**
  * Class for representing settings for a campaign
@@ -23,14 +24,18 @@ public class CampaignSettings {
 	private String title;
 	private String from_name;
 	private String reply_to;
+    private Integer templateId;
+
 	private String campaignId;
 	private MailChimpConnection connection;
 	
-	public CampaignSettings(String subject_line, String title, String from_name, String reply_to, String campaignId, MailChimpConnection connection) {
+    public CampaignSettings(String subject_line, String title, String from_name, String reply_to, Integer templateId,
+            String campaignId, MailChimpConnection connection) {
 		this.subject_line = subject_line;
 		this.title = title;
 		this.from_name = from_name;
 		this.reply_to = reply_to;
+        this.templateId = templateId;
 		this.campaignId = campaignId;
 		this.connection = connection;
 	}
@@ -66,6 +71,10 @@ public class CampaignSettings {
 		} else {
 			this.reply_to = b.reply_to;
 		}
+
+        if (b.templateId != null) {
+            this.templateId = b.templateId;
+        }
 	}
 
 	/**
@@ -156,6 +165,10 @@ public class CampaignSettings {
 		return reply_to;
 	}
 
+    public Integer getTemplateId() {
+        return templateId;
+    }
+
 	public MailChimpConnection getConnection() {
 		return this.connection;
 	}
@@ -177,6 +190,7 @@ public class CampaignSettings {
 		private String title;
 		private String from_name;
 		private String reply_to;
+        private Integer templateId;
 		private String campaignId;
 		private MailChimpConnection connection;
 
@@ -200,6 +214,10 @@ public class CampaignSettings {
 			return this;
 		}
 
+        public Builder templateId(Integer templateId) {
+            this.templateId = templateId;
+            return this;
+        }
 
 		public CampaignSettings build() {
 			try {
