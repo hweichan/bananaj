@@ -28,6 +28,7 @@ import model.automation.AutomationStatus;
 import model.campaign.Campaign;
 import model.campaign.CampaignDefaults;
 import model.campaign.CampaignFolder;
+import model.campaign.CampaignRecipients;
 import model.campaign.CampaignSettings;
 import model.campaign.CampaignStatus;
 import model.campaign.CampaignType;
@@ -409,28 +410,48 @@ public class MailChimpConnection extends Connection{
      */
     public String createCampaign(CampaignType type, MailChimpList mailChimpList, CampaignSettings settings)
             throws Exception {
-		
-		JSONObject campaign = new JSONObject();
-		
-		JSONObject recipients = new JSONObject();
-		recipients.put("list_id", mailChimpList.getId());
-		
-		JSONObject jsonSettings = new JSONObject();
-		jsonSettings.put("subject_line", settings.getSubject_line());
-		jsonSettings.put("from_name", settings.getFrom_name());
-		jsonSettings.put("reply_to", settings.getReply_to());
+        return createCampaign(type, new CampaignRecipients().withListId(mailChimpList.getId()), settings);
+	}
+
+    /**
+     * Create a new campaign in your mailchimp account
+     * 
+     * @param type
+     * @param mailChimpList
+     * @param settings
+     * @return the created Campaign ID
+     */
+    public String createCampaign(CampaignType type, CampaignRecipients recipientsSettings, CampaignSettings settings)
+            throws Exception {
+
+        JSONObject campaign = new JSONObject();
+
+        JSONObject recipients = new JSONObject();
+        recipients.put("list_id", recipientsSettings.getListId());
+        if (recipientsSettings.getSegmentOptions() != null) {
+            Integer savedSegmentId = recipientsSettings.getSegmentOptions().getSavedSegmentId();
+            if (savedSegmentId != null) {
+                JSONObject segmentOptions = new JSONObject();
+                segmentOptions.put("saved_segment_id", recipientsSettings.getSegmentOptions().getSavedSegmentId());
+                recipients.put("segment_opts", segmentOptions);
+            }
+        }
+
+        JSONObject jsonSettings = new JSONObject();
+        jsonSettings.put("subject_line", settings.getSubject_line());
+        jsonSettings.put("from_name", settings.getFrom_name());
+        jsonSettings.put("reply_to", settings.getReply_to());
         jsonSettings.put("title", settings.getTitle());
         jsonSettings.put("template_id", settings.getTemplateId());
-	
-		
-		campaign.put("type", type.getStringRepresentation());
-		campaign.put("recipients", recipients);
-		campaign.put("settings", jsonSettings);
-		
+
+        campaign.put("type", type.getStringRepresentation());
+        campaign.put("recipients", recipients);
+        campaign.put("settings", jsonSettings);
+
         JSONObject createCampaignResponse = new JSONObject(
                 do_Post(new URL(campaignendpoint), campaign.toString(), getApikey()));
         return createCampaignResponse.getString("id");
-	}
+    }
 
 	/**
 	 * Delete a campaign from mailchimp account

@@ -4,24 +4,8 @@
  */
 package model.list;
 
-import connection.MailChimpConnection;
-import exceptions.EmailException;
-import exceptions.FileFormatException;
-import jxl.*;
-import jxl.read.biff.BiffException;
-import jxl.write.*;
-import jxl.write.Number;
-import model.MailchimpObject;
-import model.list.member.Member;
-import model.list.member.MemberStatus;
-import model.list.mergefield.MergeField;
-import model.list.mergefield.MergeFieldOptions;
-import model.list.segment.*;
-import org.json.JSONArray;
-import org.json.JSONObject;
-import utils.DateConverter;
-import utils.EmailValidator;
-import utils.FileInspector;
+import static utils.EndpointUtil.ENDPOINT_UTIL;
+import static utils.MailChimpUtil.MAILCHIMP_UTIL;
 
 import java.io.File;
 import java.io.IOException;
@@ -30,7 +14,43 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import connection.MailChimpConnection;
+import exceptions.EmailException;
+import exceptions.FileFormatException;
+import jxl.Cell;
+import jxl.CellType;
+import jxl.CellView;
+import jxl.Sheet;
+import jxl.Workbook;
+import jxl.read.biff.BiffException;
+import jxl.write.Label;
+import jxl.write.Number;
+import jxl.write.WritableCellFormat;
+import jxl.write.WritableFont;
+import jxl.write.WritableSheet;
+import jxl.write.WritableWorkbook;
+import model.MailchimpObject;
+import model.list.interest.DisplayType;
+import model.list.interest.InterestCategory;
+import model.list.member.Member;
+import model.list.member.MemberStatus;
+import model.list.mergefield.MergeField;
+import model.list.mergefield.MergeFieldOptions;
+import model.list.segment.Condition;
+import model.list.segment.MatchType;
+import model.list.segment.Operator;
+import model.list.segment.Options;
+import model.list.segment.Segment;
+import model.list.segment.SegmentType;
+import utils.DateConverter;
+import utils.EmailValidator;
+import utils.FileInspector;
 
 
 /**
@@ -77,47 +97,90 @@ public class MailChimpList extends MailchimpObject {
 		for (int i = 0 ; i < membersArray.length();i++)
 		{
 			final JSONObject memberDetail = membersArray.getJSONObject(i);
-			final JSONObject memberMergeTags = memberDetail.getJSONObject("merge_fields");
-			final JSONObject memberStats = memberDetail.getJSONObject("stats");
-
-			HashMap<String, Object> merge_fields = new HashMap<String, Object>();
-
-			Iterator a = memberMergeTags.keys();
-			while(a.hasNext()) {
-				String key = (String)a.next();
-				// loop to get the dynamic key
-				Object value = memberMergeTags.get(key);
-				merge_fields.put(key, value);
-			}
-			Member member = new Member(memberDetail.getString("id"),this,merge_fields,memberDetail.getString("unique_email_id"), memberDetail.getString("email_address"), MemberStatus.valueOf(memberDetail.getString("status").toUpperCase()),memberDetail.getString("timestamp_signup"),memberDetail.getString("ip_signup"),memberDetail.getString("timestamp_opt"),memberDetail.getString("ip_opt"),memberStats.getDouble("avg_open_rate"),memberStats.getDouble("avg_click_rate"),memberDetail.getString("last_changed"),this.getConnection(),memberDetail);
-			members.add(member);
-
+            members.add(getMember(memberDetail));
 		}
 		return members;
 	}
 
 	/**
-	 * Get a single member from list
-	 * @param memberID
-	 * @return
-	 * @throws Exception
-	 */
+     * Get all members in this list with the given status and interest.
+     * 
+     * @param status
+     *            the MemberStatus the member must be in.
+     * @param interestCategoryId
+     *            the ID of the interest category the interest belongs to.
+     * @param interestGroupId
+     *            the ID of the interest.
+     * @param count
+     *            x first members
+     * @param offset
+     *            skip x first members
+     * @return
+     * @throws Exception
+     */
+    public List<Member> getMembersWithStatusAndInterest(MemberStatus status, String interestCategoryId,
+            String interestGroupId, int count, int offset) throws Exception {
+
+        List<Member> members = new ArrayList<Member>();
+        int retrieveCount = count > 0 ? count : 0;
+        URL membersUrl = new URL(ENDPOINT_UTIL.getListMembersWithStatusAndInterestEndpoint(connection.getServer(),
+                this.getId(), status, interestCategoryId, interestGroupId, retrieveCount, offset));
+
+        final JSONObject list = new JSONObject(getConnection().do_Get(membersUrl, connection.getApikey()));
+        final JSONArray membersArray = list.getJSONArray("members");
+
+        for (int i = 0; i < membersArray.length(); i++) {
+            final JSONObject memberDetail = membersArray.getJSONObject(i);
+            members.add(getMember(memberDetail));
+        }
+        return members;
+    }
+
+    /**
+     * Get a single member from list
+     * 
+     * @param memberID
+     * @return
+     * @throws Exception
+     */
 	public Member getMember(String memberID) throws Exception{
 		final JSONObject member = new JSONObject(getConnection().do_Get(new URL("https://"+connection.getServer()+".api.mailchimp.com/3.0/lists/"+getId()+"/members/"+memberID),connection.getApikey()));
-    	final JSONObject memberMergeTags = member.getJSONObject("merge_fields");
-    	final JSONObject memberStats = member.getJSONObject("stats");
+        return getMember(member);
+    }
 
-		HashMap<String, Object> merge_fields = new HashMap<String, Object>();
+    private Member getMember(JSONObject memberDetails) throws Exception {
+        final JSONObject memberMergeTags = memberDetails.getJSONObject("merge_fields");
+        final JSONObject memberStats = memberDetails.getJSONObject("stats");
 
-		Iterator a = memberMergeTags.keys();
-		while(a.hasNext()) {
-			String key = (String)a.next();
-			// loop to get the dynamic key
-			String value = (String)memberMergeTags.get(key);
-			merge_fields.put(key, value);
-		}
-		return new Member(member.getString("id"),this,merge_fields,member.getString("unique_email_id"), member.getString("email_address"),  MemberStatus.valueOf(member.getString("status").toUpperCase()),member.getString("timestamp_signup"),member.getString("ip_signup"),member.getString("timestamp_opt"),member.getString("ip_opt"),memberStats.getDouble("avg_open_rate"),memberStats.getDouble("avg_click_rate"),member.getString("last_changed"),this.getConnection(),member);
-	}
+        HashMap<String, Object> merge_fields = new HashMap<String, Object>();
+
+        Iterator a = memberMergeTags.keys();
+        while (a.hasNext()) {
+            String key = (String) a.next();
+            // loop to get the dynamic key
+            // String value = (String) memberMergeTags.get(key);
+            merge_fields.put(key, memberMergeTags.get(key));
+        }
+
+        Map<String, Boolean> interests = new HashMap<>();
+        final JSONObject memberInterests = memberDetails.getJSONObject("interests");
+        Iterator b = memberInterests.keys();
+        while (b.hasNext()) {
+            String interest = (String) b.next();
+            // loop to get the dynamic key
+            Boolean value = (Boolean) memberInterests.get(interest);
+            interests.put(interest, value);
+        }
+
+        return new Member(memberDetails.getString("id"), this, merge_fields, memberDetails.getString("unique_email_id"),
+                memberDetails.getString("email_address"),
+                MemberStatus.valueOf(memberDetails.getString("status").toUpperCase()),
+                memberDetails.getString("timestamp_signup"), memberDetails.getString("ip_signup"),
+                memberDetails.getString("timestamp_opt"), memberDetails.getString("ip_opt"),
+                memberStats.getDouble("avg_open_rate"), memberStats.getDouble("avg_click_rate"),
+                memberDetails.getString("last_changed"), this.getConnection(), memberDetails)
+                        .withInterests(interests);
+    }
 	
 	/**
 	 * Add a member with the minimum of information
@@ -140,23 +203,17 @@ public class MailChimpList extends MailchimpObject {
 	 * @param merge_fields_values
 	 * @throws Exception
 	 */
-	public void addMember(MemberStatus status, String emailAdress, HashMap<String, Object> merge_fields_values) throws Exception{
+    public void addMember(MemberStatus status, String emailAdress, Map<String, Object> merge_fields_values)
+            throws Exception {
 		URL url = new URL(connection.getListendpoint()+"/"+this.getId()+"/members");
 		
 		JSONObject member = new JSONObject();
-		JSONObject merge_fields = new JSONObject();
-
-		Iterator it = merge_fields_values.entrySet().iterator();
-		while (it.hasNext()) {
-			Map.Entry pair = (Map.Entry)it.next();
-			it.remove(); // avoids a ConcurrentModificationException
-			merge_fields.put(pair.getKey().toString(), pair.getValue());
-		}
+        JSONObject merge_fields = MAILCHIMP_UTIL.buildMergeFields(merge_fields_values);
 		
 		member.put("status", status.getStringRepresentation());
 		member.put("email_address", emailAdress);
 		member.put("merge_fields", merge_fields);
-        getConnection().do_Post(new URL(connection.getListendpoint()+"/"+this.getId()+"/members"),member.toString(),connection.getApikey());
+        getConnection().do_Post(url, member.toString(), connection.getApikey());
 		this.membercount++;
 	}
 
@@ -486,6 +543,49 @@ public class MailChimpList extends MailchimpObject {
 	public void deleteMergeField(String mergeFieldID) throws Exception{
 		connection.do_Delete(new URL(connection.getListendpoint()+"/"+this.getId()+"/merge-fields/"+mergeFieldID),connection.getApikey());
 	}
+
+    /**
+     * Get all interest categories in this list
+     *
+     * @return the list of InterestCategory.
+     * @throws Exception
+     */
+    public List<InterestCategory> getInterestCategories() throws Exception {
+        return getInterestCategories(0, 0);
+    }
+
+    /**
+     * Get interest categories in this list.
+     *
+     * @param count
+     *            x interest categories from offset, positive value to limit results
+     *            or 0 for all.
+     * @param offset
+     *            skip x first interest categories.
+     * @return the list of InterestCategory.
+     * @throws Exception
+     */
+    public List<InterestCategory> getInterestCategories(int count, int offset) throws Exception {
+
+        List<InterestCategory> interestCategories = new ArrayList<>();
+        URL interestCategoriesUrl = new URL(ENDPOINT_UTIL.getListInterestCategoriesEndpoint(getConnection().getServer(),
+                this.getId(), count > 0 ? count : 0, offset));
+        final JSONObject response = new JSONObject(
+                getConnection().do_Get(interestCategoriesUrl, connection.getApikey()));
+
+        final JSONArray categoriesArray = response.getJSONArray("categories");
+
+        for (int i = 0; i < categoriesArray.length(); i++) {
+            final JSONObject categoryDetail = categoriesArray.getJSONObject(i);
+            interestCategories.add(new InterestCategory(categoryDetail.getString("id"), categoryDetail)
+                    .withList(this)
+                    .withTitle(categoryDetail.getString("title"))
+                    .withDisplayOrder(categoryDetail.getInt("display_order"))
+                    .withType(DisplayType.valueOf(categoryDetail.getString("type").toUpperCase())));
+        }
+        return interestCategories;
+    }
+
 	/**
 	 * Writes the data of this list to an excel file in current directory. Define whether to show merge fields or not
 	 * @param show_merge

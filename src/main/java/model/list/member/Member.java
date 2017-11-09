@@ -4,14 +4,8 @@
  */
 package model.list.member;
 
-import connection.MailChimpConnection;
-import exceptions.EmailException;
-import model.MailchimpObject;
-import model.list.MailChimpList;
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-import utils.EmailValidator;
+import static utils.EndpointUtil.ENDPOINT_UTIL;
+import static utils.MailChimpUtil.MAILCHIMP_UTIL;
 
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -19,6 +13,16 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import connection.MailChimpConnection;
+import exceptions.EmailException;
+import model.MailchimpObject;
+import model.list.MailChimpList;
+import utils.EmailValidator;
 
 
 /**
@@ -29,7 +33,7 @@ import java.util.Map;
 public class Member extends MailchimpObject{
 
 	private MailChimpList mailChimpList;
-    private HashMap<String, Object> merge_fields;
+    private Map<String, Object> merge_fields;
 	private String unique_email_id;
 	private String email_address;
 	private MemberStatus status;
@@ -42,9 +46,13 @@ public class Member extends MailchimpObject{
 	private String last_changed;
 	private ArrayList<MemberActivity> memberActivities;
 	private MailChimpConnection connection;
+    private Map<String, Boolean> interests;
 
 
-	public Member(String id, MailChimpList mailChimpList, HashMap<String, Object> merge_fields, String unique_email_id, String email_address, MemberStatus status, String timestamp_signup, String ip_signup, String timestamp_opt, String ip_opt, double avg_open_rate, double avg_click_rate, String last_changed, MailChimpConnection connection, JSONObject jsonRepresentation){
+    public Member(String id, MailChimpList mailChimpList, Map<String, Object> merge_fields, String unique_email_id,
+            String email_address, MemberStatus status, String timestamp_signup, String ip_signup, String timestamp_opt,
+            String ip_opt, double avg_open_rate, double avg_click_rate, String last_changed,
+            MailChimpConnection connection, JSONObject jsonRepresentation) {
         super(id,jsonRepresentation);
         this.mailChimpList = mailChimpList;
         this.merge_fields = merge_fields;
@@ -109,9 +117,97 @@ public class Member extends MailchimpObject{
 		this.status = status;
 	}
 
+    /**
+     * Update a particular interest of this member.
+     * 
+     * @param interest
+     *            the interest ID.
+     * @param interested
+     *            whether the member is interested.
+     * @throws Exception
+     */
+    public void changeInterest(String interest, Boolean interested) throws Exception {
+        Map<String, Boolean> interests = new HashMap<>();
+        interests.put(interest, interested);
+        changeInterests(interests);
+    }
+
 	/**
-	 * @return the unique_email_id
-	 */
+     * Update the interests of this member
+     * 
+     * @param interests
+     *            a Map of the interest ID and Boolean of whether the member is
+     *            interested.
+     * @throws Exception
+     */
+    public void changeInterests(Map<String, Boolean> interests) throws Exception {
+        JSONObject request = new JSONObject();
+        request.put("interests", MAILCHIMP_UTIL.buildInterests(interests));
+        URL patchListMemberUrl = new URL(ENDPOINT_UTIL.getPatchListMemberEndpoint(mailChimpList.getConnection().getServer(),
+                getMailChimpList().getId(), getId()));
+        this.getConnection().do_Patch(patchListMemberUrl, request.toString(), connection.getApikey());
+        this.interests.putAll(interests);
+    }
+
+
+    /**
+     * Update the merge fields of this member.
+     * 
+     * @param mergeFields
+     *            a Map of the merge field and value.
+     * @throws Exception
+     */
+    public void changeMergeFields(Map<String, Object> mergeFields) throws Exception {
+        JSONObject request = new JSONObject();
+        request.put("merge_fields", MAILCHIMP_UTIL.buildMergeFields(mergeFields));
+        URL patchListMemberUrl = new URL(ENDPOINT_UTIL.getPatchListMemberEndpoint(mailChimpList.getConnection().getServer(),
+                getMailChimpList().getId(), getId()));
+        this.getConnection().do_Patch(patchListMemberUrl, request.toString(), connection.getApikey());
+        this.merge_fields.putAll(mergeFields);
+    }
+
+    /**
+     * Updates the specified changes of this member.
+     * 
+     * @param changes
+     *            any non-empty changes specified will be updated.
+     */
+    public void change(MemberUpdate changes) throws Exception {
+
+        JSONObject request = new JSONObject();
+
+        changes.getStatus().ifPresent(status -> {
+            request.put("status", status.getStringRepresentation());
+        });
+
+        changes.getInterests().ifPresent(interests -> {
+            request.put("interests", MAILCHIMP_UTIL.buildInterests(interests));
+        });
+
+        changes.getMergeFields().ifPresent(mergeFields -> {
+            request.put("merge_fields", MAILCHIMP_UTIL.buildMergeFields(mergeFields));
+        });
+
+        URL patchListMemberUrl = new URL(ENDPOINT_UTIL.getPatchListMemberEndpoint(
+                mailChimpList.getConnection().getServer(), getMailChimpList().getId(), getId()));
+        this.getConnection().do_Patch(patchListMemberUrl, request.toString(), connection.getApikey());
+
+        changes.getStatus().ifPresent(status -> {
+            this.status = status;
+        });
+
+        changes.getInterests().ifPresent(interests -> {
+            this.interests.putAll(interests);
+        });
+
+        changes.getMergeFields().ifPresent(mergeFields -> {
+            this.merge_fields.putAll(mergeFields);
+        });
+    }
+
+    /**
+     * @return the unique_email_id
+     */
 	public String getUnique_email_id() {
 		return unique_email_id;
 	}
@@ -218,7 +314,7 @@ public class Member extends MailchimpObject{
 	/**
 	 * @return a HashMap of all merge fields
 	 */
-    public HashMap<String, Object> getMerge_fields() {
+    public Map<String, Object> getMerge_fields() {
         return merge_fields;
     }
 
@@ -235,6 +331,18 @@ public class Member extends MailchimpObject{
 	public String getIp_opt() {
 		return ip_opt;
 	}
+
+    /**
+     * @return the interests of this member.
+     */
+    public Map<String, Boolean> getInterests() {
+        return interests;
+    }
+
+    public Member withInterests(Map<String, Boolean> interests) {
+        this.interests = interests;
+        return this;
+    }
 
 	@Override
 	public String toString(){
