@@ -163,13 +163,17 @@ public class MailChimpList extends MailchimpObject {
         }
 
         Map<String, Boolean> interests = new HashMap<>();
-        final JSONObject memberInterests = memberDetails.getJSONObject("interests");
-        Iterator b = memberInterests.keys();
-        while (b.hasNext()) {
-            String interest = (String) b.next();
-            // loop to get the dynamic key
-            Boolean value = (Boolean) memberInterests.get(interest);
-            interests.put(interest, value);
+        try {
+            final JSONObject memberInterests = memberDetails.getJSONObject("interests");
+            Iterator b = memberInterests.keys();
+            while (b.hasNext()) {
+                String interest = (String) b.next();
+                // loop to get the dynamic key
+                Boolean value = (Boolean) memberInterests.get(interest);
+                interests.put(interest, value);
+            }
+        } catch (Exception e) {
+            e.printStackTrace(); // no interests
         }
 
         return new Member(memberDetails.getString("id"), this, merge_fields, memberDetails.getString("unique_email_id"),
